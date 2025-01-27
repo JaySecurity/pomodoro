@@ -4,10 +4,12 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"pomodoro/timer"
 	"syscall"
@@ -26,6 +28,8 @@ func runService() {
 	}
 
 	defer listener.Close()
+
+	go handleNotify()
 
 	for {
 		conn, err := listener.Accept()
@@ -47,12 +51,10 @@ func handleConnection(conn net.Conn) {
 	}
 	switch cmd {
 	case "start":
-		fmt.Println("Start Called")
-		err := timer.NewTimer(time.Minute * 25)
+		_, err := timer.NewTimer(time.Second * 5)
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Printf("New Timer Created: %v\n", timer.Timers)
 		break
 	case "stop":
 		fmt.Println("Stop Called")
@@ -76,10 +78,33 @@ var runCmd = &cobra.Command{
 		go runService()
 
 		sig := <-sigs
+		close(timer.TimerCh)
 		fmt.Printf("Signal: %v\n", sig)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+}
+
+func handleNotify() {
+	for {
+		timer := <-timer.TimerCh
+		fmt.Printf("Timer %d: %v\n", timer.Id, timer)
+		cmd := exec.Command("zenity", "--question", fmt.Sprintf("--text=Timer %d has elapsed:\n Would you like to take a break?", timer.Id))
+		if errors.Is(cmd.Err, exec.ErrDot) {
+			cmd.Err = nil
+		}
+		err := cmd.Run()
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			switch exitCode {
+			case 0:
+				fmt.Println("Yes")
+			case 1:
+				fmt.Println("No")
+			}
+		}
+
+	}
 }
