@@ -9,7 +9,9 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"pomodoro/timer"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -43,7 +45,22 @@ func handleConnection(conn net.Conn) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(cmd)
+	switch cmd {
+	case "start":
+		fmt.Println("Start Called")
+		err := timer.NewTimer(time.Minute * 25)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("New Timer Created: %v\n", timer.Timers)
+		break
+	case "stop":
+		fmt.Println("Stop Called")
+	case "restart":
+		fmt.Println("Restart Called")
+	default:
+		fmt.Println("Unknown Command")
+	}
 }
 
 // runCmd represents the run command
