@@ -1,7 +1,6 @@
 package timer
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -19,21 +18,32 @@ type Timer struct {
 	State    State
 }
 
-var Timers = make(map[int]*Timer)
+var (
+	Timers  = make(map[int]*Timer)
+	TimerCh = make(chan *Timer)
+)
 
-func NewTimer(duration time.Duration) error {
-	fmt.Print("New Timer Created")
+func NewTimer(duration time.Duration) (*Timer, error) {
 	timer := &Timer{
 		Duration: duration,
 		State:    Stopped,
 	}
 	timer.Id = len(Timers) + 1
 	Timers[timer.Id] = timer
-	return nil
+	timer.Start()
+	return timer, nil
 }
 
 func (t *Timer) Start() {
 	t.State = Running
+	go func() {
+		c := time.Tick(t.Duration)
+		select {
+		case <-c:
+			t.State = Stopped
+			TimerCh <- t
+		}
+	}()
 }
 
 func (t *Timer) Stop() {
@@ -58,4 +68,8 @@ func GetTimers() map[int]*Timer {
 
 func GetTimer(id int) *Timer {
 	return Timers[id]
+}
+
+func runTimer() {
+	time.Tick(5 * time.Second)
 }
