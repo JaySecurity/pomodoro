@@ -7,6 +7,7 @@ import (
 	"net"
 	"pomodoro/service"
 	"pomodoro/timer"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -17,21 +18,29 @@ var listCmd = &cobra.Command{
 	Short: "List Timers",
 	Long:  `List All Active Timers.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		id := cmd.Flag("id").Value.String()
 		conn, err := net.Dial("unix", service.SocketPath)
 		if err != nil {
 			fmt.Println("Failed to connect to service:", err)
 			return
 		}
 
-		fmt.Fprintln(conn, "list")
+		fmt.Fprintln(conn, "list", id)
 		var timer timer.Timer
 		decoder := json.NewDecoder(conn)
 		for {
+			fmt.Println("looping")
 			err := decoder.Decode(&timer)
 			if err == io.EOF {
 				break
 			}
-			response := fmt.Sprintf("Timer %d: Duration: %s\n", timer.Id, timer.Duration)
+			remaining := timer.Remaining - time.Since(timer.Started)
+			var response string
+			if timer.Name == "" {
+				response = fmt.Sprintf("Timer %s: Duration: %v\n", timer.Id, remaining)
+			} else {
+				response = fmt.Sprintf("%s: %s Timer - Remaining: %v\n", timer.Id, timer.Name, remaining)
+			}
 			fmt.Println(response)
 		}
 		conn.Close()

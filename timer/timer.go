@@ -1,6 +1,7 @@
 package timer
 
 import (
+	"strconv"
 	"time"
 )
 
@@ -13,22 +14,25 @@ const (
 )
 
 type Timer struct {
-	Id       int
-	Duration time.Duration
-	State    State
+	Id        string
+	Name      string
+	Started   time.Time
+	Remaining time.Duration
+	State     State
 }
 
 var (
-	Timers  = make(map[int]*Timer)
-	TimerCh = make(chan *Timer)
+	Timers   = make(map[string]*Timer)
+	TimerCh  = make(chan *Timer)
+	UpdateCh = make(chan string)
 )
 
 func NewTimer(duration time.Duration) (*Timer, error) {
 	timer := &Timer{
-		Duration: duration,
-		State:    Stopped,
+		Remaining: duration,
+		State:     Stopped,
 	}
-	timer.Id = len(Timers) + 1
+	timer.Id = strconv.Itoa(len(Timers) + 1)
 	Timers[timer.Id] = timer
 	timer.Start()
 	return timer, nil
@@ -36,14 +40,8 @@ func NewTimer(duration time.Duration) (*Timer, error) {
 
 func (t *Timer) Start() {
 	t.State = Running
-	go func() {
-		c := time.Tick(t.Duration)
-		select {
-		case <-c:
-			t.State = Stopped
-			TimerCh <- t
-		}
-	}()
+	t.Started = time.Now()
+	go countdown(UpdateCh, t)
 }
 
 func (t *Timer) Stop() {
@@ -62,14 +60,33 @@ func (t *Timer) Restart() {
 	t.State = Stopped
 }
 
-func GetTimers() map[int]*Timer {
+func GetTimers() map[string]*Timer {
 	return Timers
 }
 
-func GetTimer(id int) *Timer {
+func GetTimer(id string) *Timer {
 	return Timers[id]
 }
 
 func runTimer() {
 	time.Tick(5 * time.Second)
+}
+
+func countdown(ch chan string, t *Timer) {
+	c := time.Tick(t.Remaining)
+	select {
+	case <-c:
+		t.State = Stopped
+		TimerCh <- t
+	case msg := <-ch:
+		if msg == "pause" {
+			t.State = Paused
+			t.Remaining = t.Remaining - time.Since(t.Started)
+			break
+		} else if msg == "stop" {
+			t.State = Stopped
+			defer close(ch)
+			break
+		}
+	}
 }

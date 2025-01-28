@@ -39,31 +39,53 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	var cmd string
-	_, err := fmt.Fscan(conn, &cmd)
+	var id string
+	_, err := fmt.Fscan(conn, &cmd, &id)
 	if err != nil {
 		fmt.Println(err)
 	}
 	switch cmd {
 	case "start":
-		var dur string
-		_, err = fmt.Fscan(conn, &dur)
-		d, _ := time.ParseDuration(dur)
-		_, err = timer.NewTimer(d)
-		if err != nil {
-			fmt.Println(err)
+		if id == "0" {
+			var dur string
+			_, err = fmt.Fscan(conn, &dur)
+			d, err := time.ParseDuration(dur)
+			_, err = timer.NewTimer(d)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else {
+			// Get Timer and Start
+			timer := timer.GetTimer(id)
+			timer.Start()
 		}
 		break
 	case "stop":
-		fmt.Println("Stop Called")
+		if id == "0" {
+			id = "1"
+		}
+		break
+	case "pause":
+		if id == "0" {
+			id = "1"
+		}
+		timer.UpdateCh <- "pause"
 		break
 	case "restart":
-		fmt.Println("Restart Called")
+		if id == "0" {
+			id = "1"
+		}
 		break
 	case "list":
-		fmt.Println("List Called")
-		timers := timer.GetTimers()
-		encoder := json.NewEncoder(conn)
-		for _, timer := range timers {
+		if id == "0" {
+			timers := timer.GetTimers()
+			encoder := json.NewEncoder(conn)
+			for _, timer := range timers {
+				encoder.Encode(timer)
+			}
+		} else {
+			timer := timer.GetTimer(id)
+			encoder := json.NewEncoder(conn)
 			encoder.Encode(timer)
 		}
 		break
@@ -76,8 +98,8 @@ func handleConnection(conn net.Conn) {
 func handleNotify() {
 	for {
 		timer := <-timer.TimerCh
-		fmt.Printf("Timer %d: %v\n", timer.Id, timer)
-		cmd := exec.Command("zenity", "--question", fmt.Sprintf("--text=Timer %d has elapsed:\n Would you like to take a break?", timer.Id))
+		fmt.Printf("Timer %s: %v\n", timer.Id, timer)
+		cmd := exec.Command("zenity", "--question", fmt.Sprintf("--text=Timer %s has elapsed:\n Would you like to take a break?", timer.Id))
 		if errors.Is(cmd.Err, exec.ErrDot) {
 			cmd.Err = nil
 		}

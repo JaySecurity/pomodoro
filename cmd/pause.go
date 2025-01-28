@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// stopCmd represents the stop command
-var stopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop the current timer",
+// pauseCmd represents the pause command
+var pauseCmd = &cobra.Command{
+	Use:   "pause",
+	Short: "pause the current timer",
 	Run: func(cmd *cobra.Command, args []string) {
 		id := cmd.Flag("id").Value.String()
 		conn, err := net.Dial("unix", "/tmp/pomodoro.sock")
@@ -18,11 +18,11 @@ var stopCmd = &cobra.Command{
 			fmt.Println("Failed to connect to service:", err)
 			return
 		}
-		fmt.Fprintln(conn, "stop", id)
+		fmt.Fprintln(conn, "pause", id)
 		conn.Close()
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(pauseCmd)
 }

@@ -15,14 +15,14 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a timer.",
 	Run: func(cmd *cobra.Command, args []string) {
+		i := cmd.Flag("id").Value.String()
 		d := cmd.Flag("duration").Value.String()
 		conn, err := net.Dial("unix", service.SocketPath)
 		if err != nil {
 			fmt.Println("Failed to connect to service:", err)
 			return
 		}
-
-		fmt.Fprintln(conn, "start", d)
+		fmt.Fprintln(conn, "start", i, d)
 		conn.Close()
 	},
 }
