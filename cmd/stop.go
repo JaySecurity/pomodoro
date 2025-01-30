@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 
@@ -12,13 +13,15 @@ var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the current timer",
 	Run: func(cmd *cobra.Command, args []string) {
-		id := cmd.Flag("id").Value.String()
+		flags := setFlags(cmd)
 		conn, err := net.Dial("unix", "/tmp/pomodoro.sock")
 		if err != nil {
 			fmt.Println("Failed to connect to service:", err)
 			return
 		}
-		fmt.Fprintln(conn, "stop", id)
+		fmt.Fprintln(conn, "stop")
+		encoder := json.NewEncoder(conn)
+		encoder.Encode(flags)
 		conn.Close()
 	},
 }

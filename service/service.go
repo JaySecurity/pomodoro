@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"pomodoro/timer"
+	"pomodoro/types"
 	"time"
 )
 
@@ -39,52 +40,56 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	var cmd string
-	var id string
-	_, err := fmt.Fscan(conn, &cmd, &id)
+	var flags types.Flags
+	_, err := fmt.Fscan(conn, &cmd)
 	if err != nil {
 		fmt.Println(err)
 	}
+	decoder := json.NewDecoder(conn)
+	err = decoder.Decode(&flags)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	switch cmd {
 	case "start":
-		if id == "0" {
-			var dur string
-			_, err = fmt.Fscan(conn, &dur)
-			d, err := time.ParseDuration(dur)
-			_, err = timer.NewTimer(d)
+		if flags.Index == "0" {
+			d, err := time.ParseDuration(flags.Duration)
+			_, err = timer.NewTimer(d, flags)
 			if err != nil {
 				fmt.Println(err)
 			}
 		} else {
 			// Get Timer and Start
-			timer := timer.GetTimer(id)
+			timer := timer.GetTimer(flags.Index)
 			timer.Start()
 		}
 		break
 	case "stop":
-		if id == "0" {
-			id = "1"
+		if flags.Index == "0" {
+			flags.Index = "1"
 		}
 		break
 	case "pause":
-		if id == "0" {
-			id = "1"
+		if flags.Index == "0" {
+			flags.Index = "1"
 		}
 		timer.UpdateCh <- "pause"
 		break
 	case "restart":
-		if id == "0" {
-			id = "1"
+		if flags.Index == "0" {
+			flags.Index = "1"
 		}
 		break
 	case "list":
-		if id == "0" {
+		if flags.Index == "0" {
 			timers := timer.GetTimers()
 			encoder := json.NewEncoder(conn)
 			for _, timer := range timers {
 				encoder.Encode(timer)
 			}
 		} else {
-			timer := timer.GetTimer(id)
+			timer := timer.GetTimer(flags.Index)
 			encoder := json.NewEncoder(conn)
 			encoder.Encode(timer)
 		}

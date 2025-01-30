@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 
@@ -18,7 +19,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("restart called")
+		flags := setFlags(cmd)
 		conn, err := net.Dial("unix", "/tmp/pomodoro.sock")
 		if err != nil {
 			fmt.Println("Failed to connect to service:", err)
@@ -26,6 +27,8 @@ to quickly create a Cobra application.`,
 		}
 
 		fmt.Fprintln(conn, "restart")
+		encoder := json.NewEncoder(conn)
+		encoder.Encode(flags)
 		var response string
 		fmt.Fscan(conn, &response)
 		fmt.Println(response)

@@ -1,6 +1,7 @@
 package timer
 
 import (
+	"pomodoro/types"
 	"strconv"
 	"time"
 )
@@ -27,12 +28,13 @@ var (
 	UpdateCh = make(chan string)
 )
 
-func NewTimer(duration time.Duration) (*Timer, error) {
+func NewTimer(duration time.Duration, flags types.Flags) (*Timer, error) {
 	timer := &Timer{
 		Remaining: duration,
 		State:     Stopped,
 	}
 	timer.Id = strconv.Itoa(len(Timers) + 1)
+	timer.Name = flags.Name
 	Timers[timer.Id] = timer
 	timer.Start()
 	return timer, nil
