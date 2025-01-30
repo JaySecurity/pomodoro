@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 	"pomodoro/service"
-	"pomodoro/timer"
+	"pomodoro/types"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,20 +28,27 @@ var listCmd = &cobra.Command{
 		fmt.Fprintln(conn, "list")
 		encoder := json.NewEncoder(conn)
 		encoder.Encode(flags)
-		var timer timer.Timer
 		decoder := json.NewDecoder(conn)
 		for {
-			fmt.Println("looping")
+			var timer types.Timer
+			var remaining time.Duration
 			err := decoder.Decode(&timer)
-			if err == io.EOF {
-				break
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Println(err)
 			}
-			remaining := timer.Remaining - time.Since(timer.Started)
+			if timer.State == 1 {
+				remaining = timer.Remaining - time.Since(timer.Started)
+			} else {
+				remaining = timer.Remaining
+			}
 			var response string
 			if timer.Name == "" {
-				response = fmt.Sprintf("Timer %s: Duration: %v\n", timer.Id, remaining)
+				response = fmt.Sprintf("Timer %s: Remaining: %v Status: %v\n", timer.Id, remaining, types.Status[timer.State])
 			} else {
-				response = fmt.Sprintf("%s: %s Timer - Remaining: %v\n", timer.Id, timer.Name, remaining)
+				response = fmt.Sprintf("%s: %s Timer - Remaining: %v Status: %v\n", timer.Id, timer.Name, remaining, types.Status[timer.State])
 			}
 			fmt.Println(response)
 		}

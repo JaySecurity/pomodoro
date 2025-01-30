@@ -51,6 +51,7 @@ func handleConnection(conn net.Conn) {
 		fmt.Println(err)
 	}
 
+	fmt.Println("Flags: ", flags.Index, flags.Duration, flags.Name)
 	switch cmd {
 	case "start":
 		if flags.Index == "0" {
@@ -64,17 +65,23 @@ func handleConnection(conn net.Conn) {
 			timer := timer.GetTimer(flags.Index)
 			timer.Start()
 		}
+		listTimers()
 		break
 	case "stop":
 		if flags.Index == "0" {
 			flags.Index = "1"
 		}
+		timer := timer.GetTimer(flags.Index)
+		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
+		timer.Stop()
 		break
 	case "pause":
 		if flags.Index == "0" {
 			flags.Index = "1"
 		}
-		timer.UpdateCh <- "pause"
+		timer := timer.GetTimer(flags.Index)
+		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
+		timer.Pause()
 		break
 	case "restart":
 		if flags.Index == "0" {
@@ -86,12 +93,24 @@ func handleConnection(conn net.Conn) {
 			timers := timer.GetTimers()
 			encoder := json.NewEncoder(conn)
 			for _, timer := range timers {
-				encoder.Encode(timer)
+				encoder.Encode(&types.Timer{
+					Id:        timer.Id,
+					Name:      timer.Name,
+					Remaining: timer.Remaining,
+					Started:   timer.Started,
+					State:     int(timer.State),
+				})
 			}
 		} else {
 			timer := timer.GetTimer(flags.Index)
 			encoder := json.NewEncoder(conn)
-			encoder.Encode(timer)
+			encoder.Encode(&types.Timer{
+				Id:        timer.Id,
+				Name:      timer.Name,
+				Remaining: timer.Remaining,
+				Started:   timer.Started,
+				State:     int(timer.State),
+			})
 		}
 		break
 	default:
@@ -119,5 +138,24 @@ func handleNotify() {
 			}
 		}
 
+	}
+}
+
+func listTimers() {
+	timers := timer.GetTimers()
+	for k, timer := range timers {
+		var remaining time.Duration
+		if timer.State == 1 {
+			remaining = timer.Remaining - time.Since(timer.Started)
+		} else {
+			remaining = timer.Remaining
+		}
+		var response string
+		if timer.Name == "" {
+			response = fmt.Sprintf("Key: %s - Timer %s: Remaining: %v Status: %v\n", k, timer.Id, remaining, timer.State)
+		} else {
+			response = fmt.Sprintf("Key %s - %s: %s Timer - Remaining: %v Status: %v\n", k, timer.Id, timer.Name, remaining, timer.State)
+		}
+		fmt.Println(response)
 	}
 }
