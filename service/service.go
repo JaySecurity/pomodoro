@@ -1,8 +1,8 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"pomodoro/timer"
 	"pomodoro/types"
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func handleConnection(conn net.Conn) {
 		fmt.Println(err)
 	}
 
-	fmt.Println("Flags: ", flags.Index, flags.Duration, flags.Name)
+	// fmt.Println("Flags: ", flags.Index, flags.Duration, flags.Name)
 	switch cmd {
 	case "start":
 		if flags.Index == "0" {
@@ -66,7 +67,6 @@ func handleConnection(conn net.Conn) {
 			timer.Start()
 		}
 		listTimers()
-		break
 	case "stop":
 		if flags.Index == "0" {
 			flags.Index = "1"
@@ -74,7 +74,6 @@ func handleConnection(conn net.Conn) {
 		timer := timer.GetTimer(flags.Index)
 		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
 		timer.Stop()
-		break
 	case "pause":
 		if flags.Index == "0" {
 			flags.Index = "1"
@@ -82,12 +81,10 @@ func handleConnection(conn net.Conn) {
 		timer := timer.GetTimer(flags.Index)
 		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
 		timer.Pause()
-		break
 	case "restart":
 		if flags.Index == "0" {
 			flags.Index = "1"
 		}
-		break
 	case "list":
 		if flags.Index == "0" {
 			timers := timer.GetTimers()
@@ -112,30 +109,43 @@ func handleConnection(conn net.Conn) {
 				State:     int(timer.State),
 			})
 		}
-		break
 	default:
 		fmt.Println("Unknown Command")
-		break
 	}
 }
 
 func handleNotify() {
 	for {
-		timer := <-timer.TimerCh
-		fmt.Printf("Timer %s: %v\n", timer.Id, timer)
-		cmd := exec.Command("zenity", "--question", fmt.Sprintf("--text=Timer %s has elapsed:\n Would you like to take a break?", timer.Id))
-		if errors.Is(cmd.Err, exec.ErrDot) {
-			cmd.Err = nil
-		}
+		t := <-timer.TimerCh
+		// fmt.Printf("Timer %s: %v\n", t.Id, t)
+		var stdout bytes.Buffer
+		cmd := exec.Command(
+			"yad",
+			"--form",
+			"--title=Choose an action",
+			"--text=Timer Elapsed:",
+			"--field=Choose:CB", "Break\\!Restart\\!Dismiss",
+			":--buttons-layout=center",
+			"--button=yad-ok",
+			"--separator= ",
+		)
+		cmd.Stdout = &stdout
 		err := cmd.Run()
-		if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode := exitError.ExitCode()
-			switch exitCode {
-			case 0:
-				fmt.Println("Yes")
-			case 1:
-				fmt.Println("No")
-			}
+		if err != nil {
+			fmt.Println("Yad failed:", err)
+			return
+		}
+		choice := strings.TrimSpace(stdout.String())
+		if choice == "Restart" {
+			// fmt.Println("Restart")
+			t.Remaining = t.Duration
+			t.Start()
+		} else if choice == "Break" {
+			// fmt.Println("Yes")
+			t.Remaining = time.Second * 5
+			t.Start()
+		} else {
+			timer.DeleteTimer(t.Id)
 		}
 
 	}
@@ -143,7 +153,8 @@ func handleNotify() {
 
 func listTimers() {
 	timers := timer.GetTimers()
-	for k, timer := range timers {
+	idx := 1
+	for _, timer := range timers {
 		var remaining time.Duration
 		if timer.State == 1 {
 			remaining = timer.Remaining - time.Since(timer.Started)
@@ -152,10 +163,17 @@ func listTimers() {
 		}
 		var response string
 		if timer.Name == "" {
-			response = fmt.Sprintf("Key: %s - Timer %s: Remaining: %v Status: %v\n", k, timer.Id, remaining, timer.State)
+			response = fmt.Sprintf(
+				"Key: %d - Timer %s: Remaining: %v Status: %v\n",
+				idx,
+				timer.Id,
+				remaining,
+				timer.State,
+			)
 		} else {
-			response = fmt.Sprintf("Key %s - %s: %s Timer - Remaining: %v Status: %v\n", k, timer.Id, timer.Name, remaining, timer.State)
+			response = fmt.Sprintf("Key %d: %s Timer - Remaining: %v Status: %v\n", idx, timer.Name, remaining, timer.State)
 		}
 		fmt.Println(response)
+		idx++
 	}
 }

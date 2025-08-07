@@ -3,8 +3,9 @@ package timer
 import (
 	"fmt"
 	"pomodoro/types"
-	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type State int
@@ -13,11 +14,13 @@ const (
 	Stopped State = iota
 	Running
 	Paused
+	Break
 )
 
 type Timer struct {
 	Id        string
 	Name      string
+	Duration  time.Duration
 	Started   time.Time
 	Remaining time.Duration
 	State     State
@@ -32,16 +35,16 @@ var (
 
 func NewTimer(duration time.Duration, flags types.Flags) (*Timer, error) {
 	timer := &Timer{
+		Duration:  duration,
 		Remaining: duration,
 		State:     Stopped,
 		// UpdateCh:  make(chan string),
 	}
-	timer.Id = strconv.Itoa(len(Timers) + 1)
+	timer.Id = uuid.New().String()
 	timer.Name = flags.Name
 	timer.UpdateCh = make(chan string)
 	Timers[timer.Id] = timer
 	timer.Start()
-	fmt.Println(timer)
 	return timer, nil
 }
 
@@ -57,17 +60,16 @@ func (t *Timer) Stop() {
 }
 
 func (t *Timer) Pause() {
-	// t.State = Paused
-	// t.Remaining = t.Remaining - time.Since(t.Started)
 	t.UpdateCh <- "pause"
 }
 
 func (t *Timer) Resume() {
-	t.State = Running
+	t.Start()
 }
 
 func (t *Timer) Restart() {
-	t.State = Stopped
+	t.Remaining = t.Duration
+	t.Start()
 }
 
 func GetTimers() map[string]*Timer {
@@ -78,21 +80,26 @@ func GetTimer(id string) *Timer {
 	return Timers[id]
 }
 
+func DeleteTimer(id string) {
+	delete(Timers, id)
+}
+
 func (t *Timer) countdown() {
 	c := time.Tick(t.Remaining)
 	select {
 	case <-c:
+		fmt.Println("Timer Stopped")
 		t.State = Stopped
 		TimerCh <- t
 	case msg := <-t.UpdateCh:
-		fmt.Println(msg)
+		fmt.Println("Message:", msg)
 		t.Remaining = t.Remaining - time.Since(t.Started)
 		if msg == "pause" {
 			t.State = Paused
+			t.Remaining = t.Remaining - time.Since(t.Started)
 		} else if msg == "stop" {
 			t.State = Stopped
 		}
 	}
-	fmt.Println("Timer Stopped")
-	return
+	fmt.Println("Countdown Exit")
 }

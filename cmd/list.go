@@ -29,6 +29,7 @@ var listCmd = &cobra.Command{
 		encoder := json.NewEncoder(conn)
 		encoder.Encode(flags)
 		decoder := json.NewDecoder(conn)
+		idx := 1
 		for {
 			var timer types.Timer
 			var remaining time.Duration
@@ -46,11 +47,18 @@ var listCmd = &cobra.Command{
 			}
 			var response string
 			if timer.Name == "" {
-				response = fmt.Sprintf("Timer %s: Remaining: %v Status: %v\n", timer.Id, remaining, types.Status[timer.State])
+				response = fmt.Sprintf(
+					"%d: Timer %s: Remaining: %v Status: %v\n",
+					idx,
+					timer.Id,
+					remaining,
+					types.Status[timer.State],
+				)
 			} else {
-				response = fmt.Sprintf("%s: %s Timer - Remaining: %v Status: %v\n", timer.Id, timer.Name, remaining, types.Status[timer.State])
+				response = fmt.Sprintf("%d: %s Timer - Remaining: %v Status: %v\n", idx, timer.Name, remaining, types.Status[timer.State])
 			}
 			fmt.Println(response)
+			idx++
 		}
 		conn.Close()
 	},
