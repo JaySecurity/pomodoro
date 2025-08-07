@@ -2,10 +2,9 @@ package cmd
 
 import (
 	"os"
+	"pomodoro/types"
 
 	"github.com/spf13/cobra"
-
-	"pomodoro/types"
 )
 
 var rootCmd = &cobra.Command{

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,7 +17,15 @@ import (
 
 var SocketPath = "/tmp/pomodoro.sock"
 
-func RunService() {
+var (
+	ctx    context.Context
+	cancel context.CancelFunc
+)
+
+func RunService() error {
+	ctx, cancel = context.WithCancel(context.Background())
+	// defer cancel()
+
 	os.Remove(SocketPath)
 	listener, err := net.Listen("unix", SocketPath)
 	if err != nil {
@@ -27,14 +36,24 @@ func RunService() {
 
 	go handleNotify()
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Printf("Unable to accept connection: %v", err)
-			continue
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					break
+				}
+				log.Printf("Unable to accept connection: %v", err)
+				continue
+			}
+			go handleConnection(conn)
 		}
-		go handleConnection(conn)
-	}
+	}()
+
+	<-ctx.Done()
+	fmt.Println("Shutting down listener...")
+	// close(timer.TimerCh)
+	return nil
 }
 
 func handleConnection(conn net.Conn) {
@@ -109,6 +128,13 @@ func handleConnection(conn net.Conn) {
 				State:     int(timer.State),
 			})
 		}
+	case "shutdown":
+		if cancel != nil {
+			fmt.Println("Shutdown signal sent.")
+			cancel()
+		} else {
+			fmt.Println("Service is not running.")
+		}
 	default:
 		fmt.Println("Unknown Command")
 	}
@@ -147,7 +173,6 @@ func handleNotify() {
 		} else {
 			timer.DeleteTimer(t.Id)
 		}
-
 	}
 }
 

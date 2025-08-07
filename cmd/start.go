@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"pomodoro/service"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -14,13 +16,26 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a timer.",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		flags := setFlags(cmd)
-
 		conn, err := net.Dial("unix", service.SocketPath)
 		if err != nil {
-			fmt.Println("Failed to connect to service:", err)
-			return
+			if strings.Contains(
+				err.Error(),
+				"dial",
+			) {
+				fmt.Println("Starting Service...")
+				StartServiceDetached(args)
+				time.Sleep(time.Millisecond * 200)
+				conn, err = net.Dial("unix", service.SocketPath)
+				if err != nil {
+
+					fmt.Println("Attempt 2: Failed to connect to service.", err)
+					return
+				}
+			} else {
+				fmt.Println("Attempt 1: Failed to connect to service.", err)
+				return
+			}
 		}
 
 		fmt.Fprintln(conn, "start")
