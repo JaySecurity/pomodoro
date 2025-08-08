@@ -91,14 +91,14 @@ func handleConnection(conn net.Conn) {
 			flags.Index = "1"
 		}
 		timer := timer.GetTimer(flags.Index)
-		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
+		// fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
 		timer.Stop()
 	case "pause":
 		if flags.Index == "0" {
 			flags.Index = "1"
 		}
 		timer := timer.GetTimer(flags.Index)
-		fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
+		// fmt.Println(timer.Id, timer.Name, timer.Remaining, timer.State)
 		timer.Pause()
 	case "restart":
 		if flags.Index == "0" {
@@ -130,13 +130,8 @@ func handleConnection(conn net.Conn) {
 		}
 	case "shutdown":
 		if cancel != nil {
-			fmt.Println("Shutdown signal sent.")
 			cancel()
-		} else {
-			fmt.Println("Service is not running.")
 		}
-	default:
-		fmt.Println("Unknown Command")
 	}
 }
 
