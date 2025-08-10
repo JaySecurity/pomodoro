@@ -88,7 +88,7 @@ func (t *Timer) countdown() {
 	c := time.Tick(t.Remaining)
 	select {
 	case <-c:
-		fmt.Println("Timer Stopped")
+		// fmt.Println("Timer Stopped")
 		t.State = Stopped
 		TimerCh <- t
 	case msg := <-t.UpdateCh:
@@ -101,5 +101,5 @@ func (t *Timer) countdown() {
 			t.State = Stopped
 		}
 	}
-	fmt.Println("Countdown Exit")
+	// fmt.Println("Countdown Exit")
 }
