@@ -12,3 +12,10 @@
 * restart: restart the timer from original duration.
 * pause: pause the timer
 * resume: resume the timer
+* list: list all timers
+
+
+## Options
+
+* Name: Add a custom name to a timer. -n --name
+
